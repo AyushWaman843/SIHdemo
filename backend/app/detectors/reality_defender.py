@@ -52,7 +52,15 @@ def analyze_file(path: Path, api_key: str, timeout_seconds: int = 90) -> dict[st
         json={"fileName": path.name},
         timeout=30,
     )
-    presign.raise_for_status()
+    if not presign.ok:
+        try:
+            err_data = presign.json()
+            err_msg = err_data.get("explanation") or err_data.get("message") or presign.text
+            raise RuntimeError(f"Reality Defender: {err_msg}")
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
+            presign.raise_for_status()
     payload = presign.json()
     response = payload.get("response") or {}
     signed_url = response.get("signedUrl")
@@ -110,7 +118,7 @@ def as_detector_result(provider: dict[str, Any]) -> DetectorResult:
         synthetic_probability=provider.get("fake_probability"),
         confidence=float(provider.get("confidence") or 0.0),
         latency_ms=float(provider.get("latency_ms") or 0.0),
-        provider="reality-defender",
+        provider=provider.get("provider", "reality-defender"),
         label=provider.get("status"),
         error="; ".join(provider.get("reasons") or []) or None,
     )

@@ -2,6 +2,27 @@ const $ = id => document.getElementById(id);
 let mode='clip', clips=[], active=false, finishing=false, socket, audio, capture, source, stream, meter, raf, stopTimer, finalSeen=false, latest;
 let flushed;
 const pct = v => v == null ? 'Unavailable' : (v*100).toFixed(1)+'%';
+const GAUGE_CIRCUMFERENCE = 326.73;
+function updateGauge(prefix, value, theme, labelText, customNum){
+  const fill=$(prefix+'Fill'), num=$(prefix+'Num'), badge=$(prefix+'Badge');
+  if(!fill||!num||!badge)return;
+  fill.classList.remove('stroke-safe','stroke-caution','stroke-danger','stroke-neutral');
+  badge.classList.remove('badge-safe','badge-caution','badge-danger','badge-neutral');
+  if(value==null){
+    fill.style.strokeDashoffset=GAUGE_CIRCUMFERENCE;
+    fill.classList.add('stroke-neutral');
+    num.textContent=customNum||'—';
+    badge.textContent=labelText||'Waiting';
+    badge.classList.add('badge-neutral');
+    return;
+  }
+  const clamped=Math.max(0,Math.min(100,Math.round(value)));
+  fill.style.strokeDashoffset=GAUGE_CIRCUMFERENCE*(1-clamped/100);
+  num.textContent=customNum||(clamped+'%');
+  fill.classList.add('stroke-'+theme);
+  badge.classList.add('badge-'+theme);
+  badge.textContent=labelText;
+}
 function status(text, error=false){$('status').textContent=text; $('status').className=error?'error':'';}
 function lock(value){active=value; for(const id of ['start','clipMode','micMode','clip','upload','sector','semantic']) $(id).disabled=value; $('stop').disabled=!value; $('player').controls=!value;}
 function setMode(value){mode=value; $('library').hidden=value==='mic'; $('player').hidden=value==='mic'; $('micNote').hidden=value!=='mic'; $('clipMode').setAttribute('aria-pressed',value==='clip'); $('micMode').setAttribute('aria-pressed',value==='mic'); $('start').textContent=value==='mic'?'Start microphone':'Play & analyze'; $('player').pause();}
@@ -15,9 +36,27 @@ function render(d){
   $('transcript').textContent=d.transcript||'Waiting for intelligible speech…';
   $('transcriptionNote').textContent=d.transcription_error||'';
   $('voiceLabel').textContent=d.voice.label;
-  $('cloneScore').textContent='Synthetic score '+pct(d.detector.synthetic_probability);
-  $('voiceExplanation').textContent=d.voice.explanation;
-  $('provider').textContent='Detector: '+d.detector.provider+(mode==='clip'?' · whole selected file':' · running stream aggregate');
+
+  // Noise-aware clone risk score adjustment
+  const qualityScore = d.channel && d.channel.channel_quality_score != null ? d.channel.channel_quality_score : 1.0;
+  const confidenceMultiplier = Math.min(1.0, Math.max(0.30, qualityScore / 0.85));
+  const rawSynthetic = d.detector.synthetic_probability;
+  const adjustedSynthetic = rawSynthetic != null ? rawSynthetic * confidenceMultiplier : null;
+
+  $('cloneScore').textContent='Synthetic score '+pct(adjustedSynthetic);
+
+  // Voice explanation with interference warning
+  if(adjustedSynthetic != null && qualityScore < 0.80 && d.detector.provider && d.detector.provider !== 'none'){
+    const qualityPct = Math.round(qualityScore * 100);
+    const originalPct = Math.round(rawSynthetic * 100);
+    const adjPct = Math.round(adjustedSynthetic * 100);
+    $('voiceExplanation').textContent = `${d.voice.explanation} (⚠ Audio interference detected — channel quality ${qualityPct}%. Risk score adjusted from ${originalPct}% to ${adjPct}% due to reduced model confidence.)`;
+  } else {
+    $('voiceExplanation').textContent=d.voice.explanation;
+  }
+
+  const pName = d.detector.provider === 'reality-defender' ? 'Reality Defender' : (d.detector.provider || 'Reality Defender');
+  $('provider').textContent='Detector: '+pName+(mode==='clip'?' · whole selected file':' · recorded microphone analysis');
   $('providerError').textContent=d.detector.error||'';
   $('fraudLabel').textContent=d.context.assessment;
   $('fraudScore').textContent=d.context.score==null?'Risk not assessed':`${d.context.level} · ${d.context.score}/100 triage score`;
@@ -31,6 +70,53 @@ function render(d){
   $('duration').textContent=d.duration_seconds+'s';
   const snr=d.channel.snr_db==null?'unavailable':d.channel.snr_db.toFixed(1)+' dB';
   $('channelDetails').textContent=`${d.channel.degradation_label} · Noise separation estimate ${snr} · occupied bandwidth ${(d.channel.bandwidth_hz/1000).toFixed(1)} kHz · clipping ${(d.channel.clipping_ratio*100).toFixed(2)}%. ${(d.channel.notes||[]).join(' ')}`;
+
+  // Update live circular score gauges
+  if(adjustedSynthetic!=null){
+    const clonePct=Math.round(adjustedSynthetic*100);
+    let vTheme='safe', vBadge='Human Voice';
+    if(clonePct>=65||d.voice.label==='Likely synthetic'){vTheme='danger';vBadge='Cloned Voice';}
+    else if(clonePct>=35||d.voice.label==='Inconclusive'){vTheme='caution';vBadge='Uncertain';}
+    updateGauge('voiceGauge',clonePct,vTheme,vBadge);
+  }else if(d.voice.label==='Recording voice...'){
+    updateGauge('voiceGauge',null,'neutral','Recording...','—');
+  }else if(d.voice.label==='Analyzing voice...'){
+    updateGauge('voiceGauge',null,'caution','Analyzing...','...');
+  }else if(d.detector.error){
+    updateGauge('voiceGauge',null,'neutral','Unavailable','N/A');
+  }else{
+    updateGauge('voiceGauge',null,'neutral','Awaiting Audio');
+  }
+
+  if(d.context.score!=null){
+    const fraudPct=Math.round(d.context.score);
+    let fTheme='safe', fBadge='Low Risk';
+    if(fraudPct>=65||d.context.level==='CRITICAL'||d.context.level==='HIGH'){fTheme='danger';fBadge='High Fraud Risk';}
+    else if(fraudPct>=30||d.context.level==='MEDIUM'){fTheme='caution';fBadge='Review Needed';}
+    updateGauge('fraudGauge',fraudPct,fTheme,fBadge);
+  }else{
+    updateGauge('fraudGauge',null,'neutral','Not Assessed');
+  }
+
+  let oScore=null, oTheme='neutral', oBadge='Waiting';
+  if(d.rating==='Suspicious'){
+    oScore=Math.max(d.context.score||75,Math.round((adjustedSynthetic||0.75)*100));
+    oTheme='danger'; oBadge='Threat Detected';
+  }else if(d.rating==='No fraud indicators detected'){
+    if(d.voice.label==='Likely synthetic'){
+      oScore=Math.round((adjustedSynthetic||0.7)*100);
+      oTheme='caution'; oBadge='Clone · No Fraud';
+    }else{
+      oScore=5; oTheme='safe'; oBadge='No Fraud Found';
+    }
+  }else if(d.rating==='No current warning'||d.rating==='Trusted'){
+    oScore=Math.max(d.context.score||0,Math.round((adjustedSynthetic||0.05)*100));
+    oTheme='safe'; oBadge='Safe / Trusted';
+  }else if(d.rating&&d.rating!=='Waiting for evidence'){
+    oScore=45; oTheme='caution'; oBadge='Review Needed';
+  }
+  updateGauge('overallGauge',oScore,oTheme,oBadge);
+
   if(d.final){finalSeen=true;status('Scan complete. Review both assessments and the recommended action.');cleanup();}
 }
 function draw(){
@@ -55,6 +141,9 @@ function resetResult(){
   for(const id of ['cloneScore','fraudScore','quality','reliability'])$(id).textContent='—';
   for(const id of ['voiceExplanation','provider','providerError','method','channelDetails','action','fraudAction'])$(id).textContent='';
   $('findings').replaceChildren();$('duration').textContent='0s';$('ratingHeading').textContent='CYPHER / provisional assessment';$('explanation').textContent='Collecting audio and context.';$('final').dataset.state='';
+  updateGauge('voiceGauge',null,'neutral','Awaiting Audio');
+  updateGauge('fraudGauge',null,'neutral','Not Assessed');
+  updateGauge('overallGauge',null,'neutral','Waiting');
 }
 async function start(){
   if(active)return;lock(true);$('stop').disabled=true;finishing=false;finalSeen=false;latest=null;resetResult();status('Preparing audio and connecting…');
@@ -102,7 +191,8 @@ async function start(){
   }catch(e){status(e.message,true);await cleanup();}
 }
 async function finish(){
-  if(!active||finishing)return;finishing=true;$('stop').disabled=true;status('Finishing transcription and waiting for the detector’s final result…');
+  if(!active||finishing)return;finishing=true;$('stop').disabled=true;
+  status(mode==='mic'?'Uploading and analyzing audio with Reality Defender…':'Finishing transcription and waiting for the detector’s final result…');
   const playbackComplete=mode==='clip' && $('player').ended;
   $('player').pause();stream?.getTracks().forEach(t=>t.stop());clearTimeout(stopTimer);
   if(capture){await new Promise(resolve=>{const timer=setTimeout(resolve,1000);flushed=()=>{clearTimeout(timer);resolve();};capture.port.postMessage('stop');});}

@@ -23,6 +23,7 @@ load_dotenv(BASE_DIR / ".env")
 from .channel import profile_audio
 from .detectors.reality_defender import analyze_file, as_detector_result
 from .detectors.resemble_detector import ResembleStreamingDetector
+from .detectors.aasist_detector import AASISTDetector
 from .engine import decide
 from .models import WhisperContext
 from .pipeline import LiveSession
@@ -115,8 +116,8 @@ async def scan_socket(websocket: WebSocket):
             async def file_check():
                 return as_detector_result(await _safe_reality_defender(path))
         else:
-            key = os.getenv('RESEMBLE_API_KEY', '').strip()
-            detector = ResembleStreamingDetector(key) if key else None
+            # Microphone mode: Captured audio is analyzed using Reality Defender API
+            detector = None
         session = ScanSession(websocket.send_json, context_layer, detector, file_check,
                               config.get('semantic') is True, str(config.get('sector', 'individual')))
         await session.start()
@@ -138,7 +139,7 @@ async def scan_socket(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     except Exception as exc:
-        LOG.warning('Integrated scan failed: %s', type(exc).__name__)
+        LOG.exception('Integrated scan failed: %s', exc)
         try:
             await websocket.send_json({'type': 'error', 'message': str(exc)})
             await websocket.close(code=1008)
@@ -193,10 +194,32 @@ async def _safe_whisper(audio) -> WhisperContext:
 async def _safe_reality_defender(path: Path) -> dict:
     key = os.getenv("REALITY_DEFENDER_API_KEY", "").strip() or os.getenv("RD_API_KEY", "").strip()
     try:
-        return await asyncio.to_thread(analyze_file, path, key)
+        res = await asyncio.to_thread(analyze_file, path, key)
+        if res and res.get("status") not in {"NOT_APPLICABLE", "UNABLE_TO_EVALUATE", "ERROR"}:
+            return res
     except Exception as exc:
         LOG.warning("Reality Defender analysis failed: %s", exc)
-        return {"status": "ERROR", "fake_probability": None, "confidence": 0.0, "reasons": [str(exc)], "models": [], "latency_ms": 0.0}
+
+    # Local on-device AASIST fallback when cloud provider credits/limits are reached
+    try:
+        import soundfile as sf
+        from .detectors.aasist_detector import predict_audio
+        data, _ = sf.read(path)
+        aasist_res = predict_audio(data)
+        if aasist_res and aasist_res.synthetic_probability is not None:
+            return {
+                "provider": "aasist",
+                "status": aasist_res.label,
+                "fake_probability": aasist_res.synthetic_probability,
+                "confidence": aasist_res.confidence,
+                "reasons": [],
+                "models": [{"name": "AASIST (On-Device)", "status": aasist_res.label}],
+                "latency_ms": aasist_res.latency_ms,
+            }
+    except Exception as exc:
+        LOG.warning("AASIST fallback failed: %s", exc)
+
+    return {"status": "ERROR", "fake_probability": None, "confidence": 0.0, "reasons": ["Deepfake analysis unavailable"], "models": [], "latency_ms": 0.0}
 
 
 @app.post("/api/analyze")

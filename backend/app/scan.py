@@ -1,8 +1,16 @@
 """One bounded audio session: independent transcript, detector and risk updates."""
 import asyncio
+import logging
+import os
+import tempfile
+from pathlib import Path
 import numpy as np
+import soundfile as sf
+
+LOG = logging.getLogger("cypher")
 
 from .channel import profile_audio
+from .detectors.reality_defender import analyze_file, as_detector_result
 from .engine import assess_voice, decide
 from .models import DetectorResult, WhisperContext
 from .risk import assess
@@ -20,7 +28,9 @@ class ScanSession:
         self.audio = np.zeros(0, dtype=np.float32)
         self.pending = np.zeros(0, dtype=np.float32)
         self.queue = asyncio.Queue(maxsize=32)
-        self.result = DetectorResult(None, 0, 0, "reality-defender" if file_check else "resemble")
+        provider = getattr(detector, "provider", "reality-defender")
+        label = "Analyzing on finish" if not file_check and not detector else None
+        self.result = DetectorResult(None, 0, 0, provider, label=label)
         self.channel = profile_audio(self.audio)
         self.transcript = ""
         self.context = assess("", sector)
@@ -54,7 +64,12 @@ class ScanSession:
                     self.result = result
                     await self.publish()
             else:
-                raise RuntimeError("Set RESEMBLE_API_KEY in .env and enable Resemble Detect access.")
+                rd_key = os.getenv("REALITY_DEFENDER_API_KEY", "").strip() or os.getenv("RD_API_KEY", "").strip()
+                if rd_key:
+                    self.result = DetectorResult(None, 0, 0, "reality-defender", label="Analyzing on finish", error=None)
+                else:
+                    self.result = DetectorResult(None, 0, 0, "reality-defender", error="Set REALITY_DEFENDER_API_KEY in .env before scanning microphone audio.")
+                await self.publish()
         except Exception as exc:
             self.connected = False
             self.result = DetectorResult(None, 0, 0, self.result.provider, error=str(exc))
@@ -141,7 +156,10 @@ class ScanSession:
                 decision.explanation = voice.explanation
         voice_label = {"Trusted": "No strong clone signal", "Synthetic": "Likely synthetic", "Uncertain": "Inconclusive"}[voice.decision]
         if self.result.synthetic_probability is None or self.result.error:
-            voice_label = "Unavailable" if self.result.error or final else "Waiting for detector"
+            if self.result.label == "Analyzing on finish":
+                voice_label = "Analyzing voice..." if final else "Recording voice..."
+            else:
+                voice_label = "Unavailable" if self.result.error or final else "Waiting for detector"
         # No arbitrary blended fraud/clone probability: keep the existing gate and rating.
         rating = "No current warning" if decision.decision == "Trusted" else decision.decision
         return {"type": "update", "final": final, "transcript": self.transcript,
@@ -153,7 +171,10 @@ class ScanSession:
 
     async def publish(self, final=False):
         async with self.send_lock:
-            await self.send(self.snapshot(final))
+            try:
+                await self.send(self.snapshot(final))
+            except Exception as exc:
+                LOG.debug("Publish skipped (socket closed): %s", exc)
 
     async def finish(self):
         if self.pending.size:
@@ -165,18 +186,46 @@ class ScanSession:
             if self.file_check:
                 await self.provider_task
             elif self.detector:
-                # Allow an in-progress handshake to finish before sending end.
                 for _ in range(220):
                     if self.connected or self.provider_task.done():
                         break
                     await asyncio.sleep(.1)
                 if self.connected:
                     try:
-                        self.result = await self.detector.finish() or DetectorResult(None, 0, 0, "resemble")
-                    except Exception:
-                        self.result = DetectorResult(None, 0, 0, "resemble", error="No final Resemble result arrived. Check provider access and retry.")
+                        self.result = await self.detector.finish() or self.result
+                    except Exception as exc:
+                        LOG.warning("Detector finish failed: %s", exc)
                     self.provider_task.cancel()
                     await asyncio.gather(self.provider_task, return_exceptions=True)
+
+            # Analyze microphone audio using the Reality Defender API key
+            if not self.file_check and (not self.detector or self.result.synthetic_probability is None or self.result.label == "Analyzing on finish"):
+                rd_key = os.getenv("REALITY_DEFENDER_API_KEY", "").strip() or os.getenv("RD_API_KEY", "").strip()
+                if not rd_key:
+                    self.result = DetectorResult(None, 0, 0, "reality-defender", error="Set REALITY_DEFENDER_API_KEY in .env before scanning microphone audio.")
+                elif self.audio.size < RATE * 0.5:
+                    self.result = DetectorResult(None, 0, 0, "reality-defender", error="Audio too brief. Please speak for at least 2 seconds.")
+                else:
+                    try:
+                        LOG.info("Analyzing microphone audio (%.2fs) using Reality Defender API", self.audio.size / RATE)
+                        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                            tmp_file = Path(f.name)
+                        try:
+                            sf.write(tmp_file, self.audio.copy(), RATE)
+                            rd_raw = await asyncio.to_thread(analyze_file, tmp_file, rd_key, 60)
+                            LOG.info("Reality Defender result: %s", rd_raw)
+                            self.result = as_detector_result(rd_raw)
+                        finally:
+                            if tmp_file.exists():
+                                tmp_file.unlink(missing_ok=True)
+                    except Exception as exc:
+                        LOG.warning("Reality Defender analysis failed: %s", exc)
+                        msg = str(exc)
+                        if "400" in msg and "upload-limit-reached" in msg or "credit" in msg.lower():
+                            err_msg = "Reality Defender: Credit limit reached on your API key. Please check your Reality Defender account or refill credits."
+                        else:
+                            err_msg = f"Reality Defender analysis failed: {exc}"
+                        self.result = DetectorResult(None, 0, 0, "reality-defender", error=err_msg)
 
         try:
             await asyncio.wait_for(asyncio.gather(self.queue.join(), finish_provider()), timeout=210)

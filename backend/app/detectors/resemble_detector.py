@@ -75,7 +75,7 @@ class ResembleStreamingDetector(RealtimeDetector):
             status = getattr(response, "status_code", None) or getattr(response, "status", None)
             if status == 402 or "402" in str(exc):
                 raise RuntimeError(
-                    "Resemble rejected the stream with HTTP 402. Enable audio Deepfake Detection and add eligible credits or resolve the account usage limit."
+                    "Resemble live streaming requires credits (HTTP 402). Audio will be analyzed with Reality Defender on stop."
                 ) from exc
             raise
         self._connected_at = time.perf_counter()

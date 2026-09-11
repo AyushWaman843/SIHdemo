@@ -20,7 +20,10 @@ def assess_voice(detector: DetectorResult, channel: ChannelProfile) -> Decision:
     probability = detector.synthetic_probability
     if probability is None or detector.error:
         decision, action = "Uncertain", "Continue"
-        explanation = detector.error or "Waiting for enough voice-active audio for a detector result."
+        if detector.label == "Analyzing on finish":
+            explanation = "Voice will be evaluated by Reality Defender when you finish speaking."
+        else:
+            explanation = detector.error or "Waiting for enough voice-active audio for a detector result."
     elif channel.channel_quality_score < 0.60:
         decision = "Uncertain"
         action = "Review audio quality"
