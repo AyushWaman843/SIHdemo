@@ -21,13 +21,15 @@ class DetectorResult:
 
 @dataclass(slots=True)
 class ChannelProfile:
-    snr_db: float
+    snr_db: float | None
     clipping_ratio: float
     bandwidth_hz: float
     silence_ratio: float
     speech_energy: float
     channel_quality_score: float
     degradation_label: str
+    notes: tuple[str, ...] = ()
+    version: str = "channel-v2"
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)

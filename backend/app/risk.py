@@ -47,6 +47,25 @@ def assess(text: str, sector: str = 'individual') -> dict:
             findings.append({'category':'Possible verification-code harvesting','weight':75,
                              'evidence':nearby.strip(), 'reason':'Caller links a received message/number to a request to disclose it; possible OTP even without that word.'})
             break
+    # Phone-bound short tokens need not be described as an SMS or an OTP.
+    short_token = r'\b(?:four|six|4|6)[ -]+digit\s+(?:number|code)\b'
+    for match in re.finditer(short_token, conversation, re.I):
+        nearby = conversation[max(0, match.start()-130):match.end()+160]
+        if (re.search(request, nearby, re.I)
+                and re.search(r'\b(?:mobile|phone|sms|text|message)\b', nearby, re.I)
+                and not re.search(r'\b(?:tracking|parcel|booking|ticket|order|extension|postcode|postal)\b', nearby, re.I)):
+            if not any(f['category'] == 'Possible verification-code harvesting' for f in findings):
+                findings.append({'category':'Possible verification-code harvesting', 'weight':75,
+                                 'evidence':nearby.strip(),
+                                 'reason':'A short numeric token on the phone is requested for disclosure; possible verification-code harvesting.'})
+            break
+    prize = re.search(r'\b(?:lottery|prize|jackpot|winnings)\b', conversation, re.I)
+    if prize and re.search(r'\b(?:claim|won|win|receive|release)\b', conversation, re.I):
+        # A prize mention alone is not a fraud finding; require a risky request.
+        if any(f['category'] in {'Possible verification-code harvesting', 'Credentials requested', 'Payment requested'} for f in findings):
+            findings.append({'category':'Prize claim linked to a sensitive request', 'weight':25,
+                             'evidence':conversation[max(0, prize.start()-60):prize.end()+260].strip(),
+                             'reason':'A promised prize accompanies a request for credentials or payment.'})
     personal = [
         r'\b(?:what(?: is|\'s)? (?:your|a) name|tell me your name)\b',
         r'\b(?:where do you live|(?:your|home|exact) address)\b',

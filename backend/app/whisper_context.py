@@ -32,6 +32,7 @@ class WhisperContextLayer:
         self.model_name = model_name
         self._model = None
         self._load_lock = asyncio.Lock()
+        self._inference_lock = asyncio.Lock()
         self.latest = WhisperContext("", "Unavailable", "UNKNOWN", None, 0.0)
 
     async def _load(self):
@@ -67,10 +68,13 @@ class WhisperContextLayer:
             def run():
                 segments, _ = model.transcribe(audio.astype(np.float32), language="en", beam_size=1, vad_filter=True)
                 return " ".join(segment.text.strip() for segment in segments).strip()
-            transcript = await asyncio.to_thread(run)
+            async with self._inference_lock:
+                transcript = await asyncio.to_thread(run)
         except Exception as exc:
             LOG.warning("Whisper transcription failed: %s", exc)
-            transcript = ""
+            result = WhisperContext("", "Unavailable", "UNKNOWN", None, (time.perf_counter() - started) * 1000)
+            self.latest = result
+            return result
         category, risk, phrase = self._classify(transcript)
         result = WhisperContext(transcript, category, risk, phrase, (time.perf_counter() - started) * 1000)
         self.latest = result

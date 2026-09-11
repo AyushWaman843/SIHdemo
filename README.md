@@ -1,73 +1,125 @@
-# CYPHER clip demo
+# CYPHER integrated conversation safety
 
-## Conversation safety demo
+Select a saved clip or use your microphone. The page shows incremental
+transcription, separate voice authenticity and fraud assessments, channel
+quality, evidence reliability, and a final CYPHER rating.
 
-### Optional semantic context analysis
-
-Add `GROQ_API_KEY=...` and optionally `CONTEXT_MODEL=llama-3.3-70b-versatile` to `.env`, restart, and tick **Use AI context analysis** in the conversation panel. This explicitly enables sending that panel's transcript to Groq for language-model interpretation. Provider model access and charges depend on your account. The secret stays on the server. A model response must include verbatim transcript evidence and pass schema validation. Errors visibly fall back to local checks. No live Groq inference was exercised in the implementation tests; schema/error paths were mocked.
-
-Live finalized utterances use the selected AI mode, with one request at a time and newer pending text replacing older pending work. Provisional microphone transcripts use local checks; recognition can revise these words. The page labels the analysis method for each result. The main clip decision still uses local transcript checks; the optional semantic result is a separate assessment in Conversation safety.
-
-Local checks now connect a received SMS/message containing digits or a number with a subsequent disclosure request (including “share that with me”). Multiple address/contact questions raise review-level concern, not proof of fraud. These patterns and the language model can still misread context; evaluate a representative set of benign and scam conversations before claiming accuracy.
-
-The page now includes Conversation safety below the audio results:
-
-- Select Individual, Financial institution, Enterprise, or Government for tailored response recommendations.
-- Start microphone context to assess English speech as the browser recognizes it. This uses the browser speech recognition service (which may send audio to its provider), requires microphone permission, and depends on browser support/connectivity. It is context monitoring, not live Reality Defender analysis. Stop ends recognition; automatic restart is disabled.
-- Or select a clearly labeled demo text example / type a transcript and click Check conversation.
-- Clip analysis also assesses the actual local Whisper transcript. Missing transcription is UNKNOWN, not low risk.
-- Evidence phrases, a rule-based triage score, recommended actions, and a session alert timeline are shown. Download incident summary exports the findings and timeline; full transcripts are omitted, but evidence phrases can contain sensitive information.
-
-High/critical conversation risk escalates the final CYPHER decision even with an authentic-looking voice or missing detector score. No calls, accounts, or transactions are automatically blocked. The risk score and channel score are uncalibrated heuristics; low risk means no listed rule matched, not proven safety. Rules are English-only and may miss paraphrases or misinterpret quotation/negation. No measured reduction in fraud is claimed.
-
-Try the bank/OTP, CEO payment, and remote-access examples, followed by benign security advice. These text examples test the context layer and do not fabricate audio-detector scores.
-
-Optional API upgrades (not configured automatically): Deepgram Live Audio provides streaming transcription (https://developers.deepgram.com/reference/speech-to-text/listen-streaming). Groq Whisper offers file/chunk transcription (https://console.groq.com/docs/speech-to-text). Both can supply transcripts for the context rules; neither endpoint alone establishes whether a conversation is fraudulent. Access, pricing, and limits depend on the provider/account. Local Whisper remains the clip transcription path.
-
-CYPHER is a small, whole-file audio trust check. Select a prepared clip (shown as `Sample 1`, `Sample 2`, …), listen with the level animation, and click **Analyze**. The server sends that file to Reality Defender, then combines the detector result with a local channel-quality profile, optional Whisper intent/risk context, and CYPHER's reliability/action engine.
-
-## Run locally
+## Run
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-```
-
-Create `.env` beside `app.py`:
-
-```text
-REALITY_DEFENDER_API_KEY=your_reality_defender_key
-WHISPER_MODEL=tiny
-```
-
-The key is used only on the server. Start the app and open `http://127.0.0.1:5000/demo`:
-
-```powershell
 python app.py
 ```
 
-## Adding clips
+Open http://127.0.0.1:5000/demo in Chrome or Edge. Restart after code or .env
+changes, then refresh the browser. Configure .env using .env.example:
 
-Put audio files directly in `clips/`, or use **Add a clip to the library** in the page. Supported formats are WAV, MP3, FLAC, M4A, AAC, OGG, and ALAC (up to 20 MB). Existing root-level audio files are also discovered for compatibility. The browser labels every file as a neutral Sample number.
-
-## What the result means
-
-- **Detector fake probability** comes from Reality Defender's audio ensemble. `NOT_APPLICABLE` or an API error remains unavailable; it is never treated as real.
-- **Channel quality** uses an SNR proxy, spectral bandwidth, frame-level spectral integrity (to catch narrow-band/codec artifacts), silence, speech energy, and clipping.
-- **Evidence reliability** and **operational risk** are independent of the detector score. Poor audio lowers reliability; it does not manufacture a higher fake probability.
-- If channel quality is below `0.60`, CYPHER shows the provider score for reference but gates the final result to **Uncertain**.
-- CYPHER returns **Trusted**, **Suspicious**, or **Uncertain**, with an action such as Continue, Warn, Verify MFA, or Escalate.
-
-Whisper is optional and runs the tiny int8 CPU model when available. If it cannot load, the scan still completes with intent shown as `None`.
-
-## Layout
-
-```text
-clips/                         place additional audio here
-backend/app/main.py            FastAPI routes and minimal UI
-backend/app/detectors/reality_defender.py  upload/poll API client
-backend/app/channel.py         local signal-quality profile
-backend/app/whisper_context.py optional intent/risk layer
-backend/app/engine.py          reliability and action decision
+```dotenv
+RESEMBLE_API_KEY=your_resemble_detect_key
+REALITY_DEFENDER_API_KEY=your_reality_defender_key
+GROQ_API_KEY=your_optional_groq_key
+WHISPER_MODEL=tiny
+CONTEXT_MODEL=llama-3.3-70b-versatile
 ```
+
+Resemble needs Detect access and eligible credits. HTTP 402 requires an account
+or billing change. Missing/rejected keys make voice detection unavailable while
+transcription and fraud checks continue. Keys stay on the backend.
+
+## Integrated flow
+
+- **Audio library / Play & analyze:** Reality Defender checks the original file
+  once. Actual playback audio streams to local Whisper for transcription.
+- **Microphone / Start microphone:** microphone audio streams to Resemble Detect
+  and local Whisper concurrently. Monitoring is muted to avoid feedback.
+- **Use AI to understand the conversation:** optionally sends accumulated text
+  to Groq. Local checks run first, and the higher risk assessment is retained.
+  AI failures visibly fall back to local checks. These findings affect the
+  integrated final rating.
+  Failure notices identify authentication, rate-limit, network and validation
+  problems without exposing secrets. A requested but incomplete AI review makes
+  an otherwise LOW final assessment uncertain; local high-risk evidence still
+  escalates. Lottery/prize claims tied to disclosing a short phone token are
+  checked locally even when the transcript never says SMS or OTP.
+- **Stop & finish:** flushes remaining speech and waits for the final detector
+  response. Playback completion triggers this automatically. Stopping a clip
+  early explicitly marks partial coverage: Reality Defender still checked the
+  whole original file.
+
+The browser sends 16 kHz mono PCM16 in approximately 100 ms frames. Local
+tiny/int8 Whisper transcribes four-second chunks. CPU speed, model startup and
+optional AI calls add latency. This is incremental transcription, not word-level
+streaming ASR. The first use may download the speech model. Chunk boundaries
+can reduce recognition quality. Fraud checks use accumulated text to connect
+an SMS-code reference with a later disclosure request.
+
+Sessions are capped at 120 seconds to bound memory and queues. Microphone
+access requires localhost or HTTPS. Put more files in clips/ or upload through
+the page (20 MB maximum). Supported library formats: WAV, MP3, FLAC, M4A, AAC,
+OGG and ALAC; convert to WAV/MP3 if the browser cannot play a codec.
+Live audio and transcripts stay in memory, not on disk. External services
+receive audio/text as described above; library uploads are stored locally.
+
+## Interpreting results
+
+Voice authenticity shows the provider's synthetic score with an independent
+gated verdict. Synthetic detection cannot verify speaker identity or establish
+whose voice was cloned. Fraud assessment shows transcript evidence, method,
+risk level, an uncalibrated triage score, and a recommended action.
+
+The existing channel and decision engine remain: quality below 60%, low
+reliability, or a borderline detector score makes voice authenticity inconclusive.
+High/critical conversation risk independently escalates the final assessment.
+Synthetic speech alone does not trigger a suspicious/fraud verdict. With reliable
+voice evidence and LOW conversation risk, the final rating is "No fraud indicators
+detected" while the voice panel still says "Likely synthetic". Medium conversation
+risk requires review; missing context or poor voice evidence remains uncertain.
+Poor quality never changes fake into real. No current warning does not establish
+safety. No invented combined clone/fraud probability is displayed.
+
+Channel profiling v2 screens for noise-like energy, clipping/flat tops, very low
+level and limited occupied bandwidth. Low spectral flatness is no longer treated
+as damage. Pauses are excluded from active spectral measurements. Noise separation
+is estimated only with a sustained quiet reference; otherwise it is unavailable,
+not zero dB. The 99.5% energy rolloff describes occupied bandwidth, not a codec
+cutoff. Bandwidth gets a modest penalty because voice content also affects it.
+Noise/clipping are no longer counted again in evidence reliability.
+
+The formula starts at 0.95 and subtracts bounded impairment penalties. These
+weights and the retained 0.60 gate are prototype choices, not calibrated accuracy.
+Controlled tests check added noise, hard clipping (including attenuated clipping),
+band limiting, volume changes, pauses, and missing input. This does not validate
+perceptual quality or detector accuracy. Codec/phase artifacts can escape these
+measurements: the existing el_0014_severe.wav scores about 90.6% in v2 despite
+being a processed test clip. Do not use this score to claim such artifacts are
+absent or that detector output is necessarily reliable. A labeled evaluation set
+and provider-specific validation are still needed. No transaction is automatically
+blocked and the app does not prove fraud.
+
+## Testing
+
+```powershell
+.venv/Scripts/python.exe -m unittest discover -s tests -v
+node --check backend/app/scan.js
+node --check backend/app/capture.js
+```
+
+Tests cover separate fraud escalation, quality gating, provider failure,
+incremental transcripts, final short-chunk flushing, handshake buffering without
+duplication, invalid PCM and invalid clip paths. Providers and transcription
+are mocked in pipeline tests; this does not measure model accuracy.
+
+Optional Chrome smoke test (requires `pip install playwright`):
+`python tests/browser_scan_smoke.py`. It exercises actual browser audio capture,
+two successive clip scans, microphone capture, finalization, and mobile width,
+with simulated transcription and detector responses and no external model calls.
+
+Demo exercise: say “You will receive a message with six digits”, then “Please
+share that with me”. Check the actual transcript and evidence. Repeat with
+“Never share your OTP” as a benign control.
+
+The new page uses /ws/scan. Legacy /api/analyze, /api/context and /ws/live remain
+for compatibility; the older standalone context panel is no longer loaded.
+Resemble protocol: https://docs.resemble.ai/detect/streaming.

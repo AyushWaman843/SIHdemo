@@ -47,6 +47,7 @@ class ResembleStreamingDetector(RealtimeDetector):
         self._last_send_at = 0.0
         self._header_sent = False
         self._final_event = asyncio.Event()
+        self.final_result = None
 
     async def connect(self) -> None:
         if self.websocket is not None:
@@ -95,9 +96,15 @@ class ResembleStreamingDetector(RealtimeDetector):
                 payload = json.loads(message)
                 message_type = payload.get("type")
                 if message_type == "final":
-                    self._final_event.set()
                     score = payload.get("aggregated_score")
                     label = payload.get("label")
+                    self.final_result = DetectorResult(
+                        float(score) if score is not None else None,
+                        min(1.0, max(0.0, float(payload.get("consistency") or 0) / 100)),
+                        0.0, self.provider, label=label,
+                        error=None if score is not None else "No sufficient voice-active audio was evaluated.",
+                    )
+                    self._final_event.set()
                     if score is not None:
                         result = DetectorResult(
                             synthetic_probability=float(score),
@@ -116,10 +123,10 @@ class ResembleStreamingDetector(RealtimeDetector):
                     label = info.get("chunk_label") or payload.get("label")
                     if label == "skipped":
                         continue
-                    score = info.get("chunk_aggregated_score")
+                    score = payload.get("aggregated_score")
                     if score is None:
-                        score = payload.get("aggregated_score")
-                    consistency = info.get("chunk_consistency")
+                        score = info.get("chunk_aggregated_score")
+                    consistency = payload.get("consistency")
                     if consistency is None:
                         consistency = payload.get("consistency")
                     result = DetectorResult(
@@ -143,6 +150,12 @@ class ResembleStreamingDetector(RealtimeDetector):
                         pass
         except Exception as exc:
             LOG.warning("Resemble reader stopped: %s", exc)
+        finally:
+            if not self._final_event.is_set():
+                if self._result_queue.full():
+                    self._result_queue.get_nowait()
+                self._result_queue.put_nowait(DetectorResult(None, 0, 0, self.provider,
+                    error="Resemble stream ended before a final result. Retry the scan."))
 
     async def stream_detect(self, audio_chunk: bytes) -> None:
         await self.connect()
@@ -154,14 +167,7 @@ class ResembleStreamingDetector(RealtimeDetector):
             await self.websocket.send(audio_chunk)
             self._last_send_at = time.perf_counter()
         except Exception as exc:
-            LOG.warning("Resemble send failed, reconnecting: %s", exc)
-            await self._drop_connection()
-            await self.connect()
-            assert self.websocket is not None
-            await self.websocket.send(wav_header())
-            await self.websocket.send(audio_chunk)
-            self._header_sent = True
-            self._last_send_at = time.perf_counter()
+            raise RuntimeError("Resemble audio upload was interrupted. Start a new scan.") from exc
 
     async def results(self) -> AsyncIterator[DetectorResult]:
         while True:
@@ -170,17 +176,20 @@ class ResembleStreamingDetector(RealtimeDetector):
     async def _drop_connection(self) -> None:
         if self._reader_task:
             self._reader_task.cancel()
+            await asyncio.gather(self._reader_task, return_exceptions=True)
             self._reader_task = None
         if self.websocket is not None:
             await self.websocket.close()
         self.websocket = None
 
+    async def finish(self):
+        if self.websocket is None:
+            return None
+        await self.websocket.send(json.dumps({"type": "end"}))
+        await asyncio.wait_for(self._final_event.wait(), timeout=45)
+        return self.final_result
+
     async def close(self) -> None:
         if self.websocket is None:
             return
-        try:
-            await self.websocket.send(json.dumps({"type": "end"}))
-            await asyncio.wait_for(self._final_event.wait(), timeout=3.0)
-        except Exception:
-            pass
         await self._drop_connection()

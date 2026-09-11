@@ -4,6 +4,17 @@ from backend.app.engine import decide
 from backend.app.models import DetectorResult, ChannelProfile, WhisperContext
 
 class RiskTests(unittest.TestCase):
+    def test_lottery_phone_token_and_benign_controls(self):
+        transcript = "I am calling to inform you about the lottery that you have won. All you need to do to claim your 5-Lack Rupees is to send me a full- 4-digit number on your mobile phone. After which, you will be trampled. That's for it, you're some."
+        result = assess(transcript)
+        self.assertEqual(result['level'], 'CRITICAL')
+        self.assertIn('Possible verification-code harvesting', [f['category'] for f in result['findings']])
+        for benign in ('You won a lottery prize. Congratulations.',
+                       'Never send me the 4-digit number on your mobile phone.',
+                       'Please send me your 4-digit phone extension.',
+                       'Send me the 4-digit order number shown on your phone.'):
+            with self.subTest(benign=benign):
+                self.assertEqual(assess(benign)['level'], 'LOW')
     def test_indirect_code_and_personal_questions(self):
         text = 'hi can you tell me what a name is where do you live exactly yeah and what is the phone number stop your text you will get a message giving you a full digit number and can you please share that with me okay yeah thank you'
         result = assess(text)
