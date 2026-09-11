@@ -47,6 +47,8 @@
   --danger: #ffa1aa;
   --danger-soft: #452a30;
   --gauge-track: #3b4a41;
+  --cypher-cyan: #00d2d6;
+  --cypher-navy: #4daaf8;
   --pattern: rgba(180, 207, 189, 0.04);
   --shadow: 0 8px 24px -20px rgba(0, 0, 0, 0.6);
   --meter-filter: brightness(1.8) saturate(1.1);
@@ -87,6 +89,8 @@
   --danger: #a42e3b;
   --danger-soft: #ffe9ec;
   --gauge-track: #d0ded4;
+  --cypher-cyan: #009ca6;
+  --cypher-navy: #0b2545;
   --pattern: rgba(35, 77, 49, 0.045);
   --shadow: 0 8px 22px -18px rgba(27, 55, 36, 0.28);
   --meter-filter: none;
@@ -137,18 +141,29 @@ body::before {
 .mark {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
-.mark > svg {
+.cypher-logo-svg {
   display: block;
-  width: 46px;
-  height: 46px;
-  padding: 7px;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  width: 58px;
+  height: 38px;
+  flex: none;
+  filter: drop-shadow(0 2px 10px rgba(0, 210, 214, 0.22));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.cypher-logo-svg:hover {
+  transform: scale(1.05);
+  filter: drop-shadow(0 3px 14px rgba(0, 210, 214, 0.35));
+}
+
+.cypher-svg-cyan {
+  stroke: var(--cypher-cyan);
+}
+
+.cypher-svg-navy {
+  stroke: var(--cypher-navy);
 }
 
 .topbar-tools { display: flex; align-items: center; gap: 24px; }
@@ -209,21 +224,22 @@ body::before {
 
 .wordmark {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 28px;
-  letter-spacing: 0;
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ink);
-  line-height: 1;
+  line-height: 1.05;
 }
 
 .mark-sub {
   font-family: var(--font-sans);
-  font-size: 13px;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--faint);
-  margin-top: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3px;
 }
 
 .live-pill {
@@ -1173,15 +1189,60 @@ body:has(#start:disabled) .live-dot,
 <div class="topbar">
   <div class="topbar-inner">
     <div class="mark">
-      <svg width="30" height="34" viewBox="0 0 30 34" fill="none" aria-hidden="true">
-        <path d="M15 1.6 27.6 7v10.2c0 7.6-5.2 13.4-12.6 15.3C7.6 30.6 2.4 24.8 2.4 17.2V7L15 1.6Z"
-                stroke="currentColor" stroke-width="1.6"/>
-              <path d="M9.6 17.4h3.1l1.9 4.1 3-9.2 1.8 5.1h3.2" stroke="currentColor" stroke-width="1.8"
-              stroke-linecap="round" stroke-linejoin="round"/>
+      <svg class="cypher-logo-svg" width="58" height="40" viewBox="0 0 240 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="CYPHER - AI Voice Clone Detector">
+        <!-- Left Cyan Waveform -->
+        <path class="cypher-svg-cyan" d="M 10 80 L 44 80 L 50 96 L 60 52 L 68 106 L 76 80 L 92 80" 
+              stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+        
+        <!-- Right Navy/Blue Waveform -->
+        <path class="cypher-svg-navy" d="M 148 80 L 164 80 L 172 106 L 180 52 L 190 96 L 196 80 L 230 80" 
+              stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Left Cyan Shield Half -->
+        <path class="cypher-svg-cyan" d="M 117 16 L 76 38 L 71 42 L 71 90 C 71 115 95 137 117 146" 
+              stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Right Navy Shield Half -->
+        <path class="cypher-svg-navy" d="M 123 16 L 164 38 L 169 42 L 169 90 C 169 115 145 137 123 146" 
+              stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Inner Concentric Outer Arcs (Left Cyan) -->
+        <path class="cypher-svg-cyan" d="M 116 38 A 42 42 0 0 0 78 80" 
+              stroke-width="4.5" stroke-linecap="round"/>
+        <path class="cypher-svg-cyan" d="M 78 80 A 42 42 0 0 0 116 122" 
+              stroke-width="4.5" stroke-linecap="round"/>
+
+        <!-- Inner Concentric Outer Arcs (Right Navy) -->
+        <path class="cypher-svg-navy" d="M 124 38 A 42 42 0 0 1 162 80" 
+              stroke-width="4.5" stroke-linecap="round"/>
+        <path class="cypher-svg-navy" d="M 162 80 A 42 42 0 0 1 124 122" 
+              stroke-width="4.5" stroke-linecap="round"/>
+
+        <!-- Inner Concentric Mid Arcs (Left Cyan) -->
+        <path class="cypher-svg-cyan" d="M 116 52 A 28 28 0 0 0 92 80" 
+              stroke-width="4" stroke-linecap="round"/>
+        <path class="cypher-svg-cyan" d="M 92 80 A 28 28 0 0 0 116 108" 
+              stroke-width="4" stroke-linecap="round"/>
+
+        <!-- Inner Concentric Mid Arcs (Right Navy) -->
+        <path class="cypher-svg-navy" d="M 124 52 A 28 28 0 0 1 148 80" 
+              stroke-width="4" stroke-linecap="round"/>
+        <path class="cypher-svg-navy" d="M 148 80 A 28 28 0 0 1 124 108" 
+              stroke-width="4" stroke-linecap="round"/>
+
+        <!-- Central "C" (Left Cyan arc) -->
+        <path class="cypher-svg-cyan" d="M 118 66 A 14 14 0 0 0 106 80 A 14 14 0 0 0 118 94" 
+              stroke-width="5.5" stroke-linecap="round"/>
+        
+        <!-- Central "C" (Right Navy arms) -->
+        <path class="cypher-svg-navy" d="M 118 66 L 132 66" 
+              stroke-width="5.5" stroke-linecap="round"/>
+        <path class="cypher-svg-navy" d="M 118 94 L 132 94" 
+              stroke-width="5.5" stroke-linecap="round"/>
       </svg>
       <div>
-        <div class="wordmark">Cypher</div>
-        <div class="mark-sub">Conversation Defence</div>
+        <div class="wordmark">CYPHER</div>
+        <div class="mark-sub">AI Voice Clone Detector</div>
       </div>
     </div>
     <div class="topbar-tools">
