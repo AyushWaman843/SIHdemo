@@ -1,293 +1,775 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CYPHER — conversation safety</title>
+<script>
+(() => {
+  let theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  try {
+    const savedTheme = localStorage.getItem('cypher-ui-theme');
+    if (savedTheme === 'dark' || savedTheme === 'light') theme = savedTheme;
+  } catch {}
+  document.documentElement.dataset.theme = theme;
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+
+  --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-sans: 'Manrope', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, monospace;
-  --color-brand: #167053;
-  --color-primary: #176b50;
-  --color-primary-dark: #12553f;
-  --color-primary-light: #208766;
-  --color-text: #172b24;
-  --color-muted: #5b7066;
-  --color-muted-light: #6a8276;
-  --color-bg: #f5f7f4;
-  --color-card-bg: #ffffff;
-  --color-border: #d7e0d9;
-  --color-border-focus: #dfaa48;
-  --color-gold: #b98a39;
-  --color-danger: #ef4444;
-  --color-danger-dark: #b43737;
-  --color-danger-bg: #fef2f2;
-  --color-warning: #f59e0b;
-  --color-success: #10b981;
+
+  --bg: #141617;
+  --panel: #1e2122;
+  --panel-2: #282e2d;
+  --well: #191d1d;
+  --topbar: rgba(20, 22, 23, 0.96);
+  --line: #3a4541;
+  --line-2: #75867e;
+  --ink: #f0f5f1;
+  --ink-2: #d1ddd5;
+  --muted: #b0c2b5;
+  --faint: #a9beb0;
+  --accent: #91e8bc;
+  --accent-2: #b0f0cf;
+  --accent-ink: #123522;
+  --accent-soft: #253e2f;
+  --safe: #91e8bc;
+  --safe-soft: #233c2d;
+  --caution: #edc17c;
+  --caution-soft: #443822;
+  --danger: #ffa1aa;
+  --danger-soft: #452a30;
+  --gauge-track: #3b4a41;
+  --pattern: rgba(180, 207, 189, 0.04);
+  --shadow: 0 8px 24px -20px rgba(0, 0, 0, 0.6);
+  --meter-filter: brightness(1.8) saturate(1.1);
+  --r: 6px;
+  --r-lg: 8px;
+  --icon-play: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='6 3 20 12 6 21 6 3'/%3E%3C/svg%3E");
+  --icon-stop: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect width='14' height='14' x='5' y='5' rx='2'/%3E%3C/svg%3E");
+  --icon-mic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19v3M19 10v2a7 7 0 0 1-14 0v-2'/%3E%3Crect x='9' y='2' width='6' height='12' rx='3'/%3E%3C/svg%3E");
+
   font-family: var(--font-sans);
-  color: var(--color-text);
-  background: var(--color-bg);
-  font-size: 15px;
+  color: var(--ink);
+  font-size: 16px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f2f5f3;
+  --panel: #ffffff;
+  --panel-2: #e6ede8;
+  --well: #eaf0ec;
+  --topbar: rgba(255, 255, 255, 0.96);
+  --line: #c7d4cb;
+  --line-2: #7c9384;
+  --ink: #192c21;
+  --ink-2: #334e3d;
+  --muted: #506959;
+  --faint: #536c5c;
+  --accent: #176943;
+  --accent-2: #115535;
+  --accent-ink: #ffffff;
+  --accent-soft: #e0eee4;
+  --safe: #20663d;
+  --safe-soft: #e6f3e9;
+  --caution: #815910;
+  --caution-soft: #fbf1d9;
+  --danger: #a42e3b;
+  --danger-soft: #ffe9ec;
+  --gauge-track: #d0ded4;
+  --pattern: rgba(35, 77, 49, 0.045);
+  --shadow: 0 8px 22px -18px rgba(27, 55, 36, 0.28);
+  --meter-filter: none;
+}
+
 * { box-sizing: border-box; }
+::selection { background: var(--accent); color: var(--accent-ink); }
+
 body {
   margin: 0;
-  background: radial-gradient(circle at 50% 0%, rgba(22, 112, 83, 0.05) 0%, transparent 60%), var(--color-bg);
   min-height: 100vh;
+  background: var(--bg);
 }
 
-main {
-  max-width: 980px;
-  margin: auto;
-  padding: 42px 24px 72px;
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(var(--pattern) 1px, transparent 1px),
+    linear-gradient(90deg, var(--pattern) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(#000, transparent 65%);
 }
 
-/* Header & Hero Section */
-header {
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 28px;
-  padding-bottom: 24px;
+/* ═══════════════ Top bar ═══════════════ */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--topbar);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
 }
 
-.brand-badge {
+.topbar-inner {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mark > svg {
+  display: block;
+  width: 46px;
+  height: 46px;
+  padding: 7px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.topbar-tools { display: flex; align-items: center; gap: 24px; }
+
+.theme-switch {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(2, 94px);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  background: var(--well);
+  border-radius: 8px;
+}
+
+.theme-switch::before {
+  content: '';
+  position: absolute;
+  inset: 4px auto 4px 4px;
+  width: 94px;
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  transition: transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.theme-switch:has([data-theme-choice="dark"][aria-pressed="true"])::before {
+  transform: translateX(98px);
+}
+
+.theme-switch button {
+  position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  background: rgba(22, 112, 83, 0.08);
-  border: 1px solid rgba(22, 112, 83, 0.22);
-  border-radius: 9999px;
-  padding: 5px 14px 5px 10px;
-  margin-bottom: 12px;
+  min-width: 84px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.brand-badge .brand {
-  color: var(--color-brand);
-  letter-spacing: 0.16em;
-  font-weight: 800;
-  font-size: 11.5px;
+.theme-switch button[aria-pressed="true"] {
+  color: var(--ink);
+}
+
+.theme-switch button:hover { color: var(--ink); }
+.lucide { width: 18px; height: 18px; flex: none; }
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: 0;
   text-transform: uppercase;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.mark-sub {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--faint);
+  margin-top: 4px;
+}
+
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 0;
+}
+
+.live-pill span:last-child {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
 }
 
 .live-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--color-brand);
+  background: var(--muted);
   position: relative;
-  display: inline-block;
+  flex: none;
 }
 
-.live-dot::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  border: 1.5px solid var(--color-brand);
-  animation: pulse-ring 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+body:has(#start:disabled) .live-dot { background: var(--accent); }
+
+/* ═══════════════ Shell ═══════════════ */
+main {
+  position: relative;
+  z-index: 1;
+  max-width: 1600px;
+  margin: auto;
+  padding: 30px 32px 56px;
 }
 
-@keyframes pulse-ring {
-  0% { transform: scale(0.6); opacity: 0.9; }
-  60%, 100% { transform: scale(2.2); opacity: 0; }
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
 }
 
 h1 {
-  font-size: clamp(30px, 4.4vw, 42px);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  margin: 6px 0 10px;
-  color: #10241e;
-  line-height: 1.18;
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.15;
+  margin: 0;
+  max-width: none;
+  color: var(--ink);
 }
 
+.title-period { color: var(--accent); }
+
 header p.muted {
-  font-size: 16px;
-  color: var(--color-muted);
+  font-size: 14px;
+  color: var(--muted);
   margin: 0;
+  max-width: 62ch;
 }
 
 p { margin: 8px 0; }
-small, .muted { color: var(--color-muted); }
-.note { font-size: 12.5px; }
+small, .muted { color: var(--muted); }
+.note { font-size: 14px; }
+.error { color: var(--danger); }
+[hidden] { display: none !important; }
+p:empty { display: none; }
+p, h1, h2, h3, li { overflow-wrap: anywhere; }
 
-/* Cards & Panels */
-section, .panel {
-  background: var(--color-card-bg);
-  border: none;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03), 0 6px 16px -4px rgba(23,43,36,0.05), inset 0 0 0 1px var(--color-border);
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 22px;
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
+/* ═══════════════ Layout ═══════════════ */
+.workspace {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 30px;
+  align-items: start;
 }
 
-.panel:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px -1px rgba(0,0,0,0.03), 0 12px 24px -4px rgba(23,43,36,0.08), inset 0 0 0 1px #cbd7cf;
-}
+.rail { min-width: 0; padding-right: 26px; border-right: 1px solid var(--line); }
 
-.row {
+.results {
   display: flex;
-  gap: 14px;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
 }
 
-.row > select { flex: 1; }
+/* ═══════════════ Panels ═══════════════ */
+section, .panel {
+  position: relative;
+  min-width: 0;
+}
+
+.panel {
+  --check-accent: var(--accent);
+  padding: 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+}
+
+.panel[data-index="02"] { --check-accent: var(--caution); }
+
+.check-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.check-heading h2 { margin: 0; font: 600 16px/1.4 var(--font-sans); }
+
+.check-index {
+  color: var(--check-accent);
+  font: 500 14px/1.4 var(--font-mono);
+}
+
+.transcript-section {
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.panel-head .idx {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--accent);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--accent-soft);
+}
+
+.panel-head .ttl {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.panel-head .rule {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.divider {
+  height: 1px;
+  background: var(--line);
+  margin: 18px 0;
+}
+
+/* ═══════════════ Controls ═══════════════ */
 label {
   display: block;
-  margin: 12px 0 6px;
-  font-weight: 500;
-  color: #21382e;
+  margin: 0 0 8px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: var(--faint);
   font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 select, button, input { font: inherit; }
+.field { margin-bottom: 14px; }
 
-/* Segmented Control for Audio library / Microphone */
+select {
+  width: 100%;
+  padding: 11px 36px 11px 13px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  background-color: var(--panel);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%237d95a8' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  -webkit-appearance: none;
+  appearance: none;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+select:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+select option { color: var(--ink); background: var(--panel); }
+
+/* Segmented switcher */
 .mode-switcher {
-  display: inline-flex;
-  background: #e9efe9;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--well);
   padding: 4px;
-  border-radius: 11px;
-  border: 1px solid #d4dfd6;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
   gap: 4px;
-  margin-bottom: 4px;
+  margin-bottom: 20px;
 }
 
 .mode-switcher button {
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
   cursor: pointer;
   background: transparent;
-  color: #40584c;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--faint);
+  min-height: 42px;
 }
 
 .mode-switcher button[aria-pressed="true"] {
-  background: var(--color-primary);
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(23,107,80,0.28);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
-.mode-switcher button[aria-pressed="false"]:hover {
-  background: rgba(23,107,80,0.09);
-  color: var(--color-text);
+.mode-switcher button[aria-pressed="false"]:hover:not(:disabled) {
+  color: var(--ink-2);
+  background: var(--panel-2);
 }
 
-/* Standard Inputs & Controls */
-select {
-  padding: 10px 14px;
-  border: 1px solid #acbdb2;
-  border-radius: 9px;
-  background: #fff;
-  min-width: 170px;
-  color: var(--color-text);
-  font-size: 14px;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
+/* Upload disclosure */
+details { margin-top: 12px; }
 
-select:hover { border-color: #8fa697; }
-
-/* Buttons */
-button#start {
-  padding: 12px 24px;
-  border: 1px solid #135841;
-  border-radius: 9px;
-  background: linear-gradient(180deg, var(--color-primary-light) 0%, var(--color-primary) 100%);
-  color: white;
-  font-weight: 600;
-  font-size: 14.5px;
+summary {
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(23,107,80,0.2), 0 6px 14px rgba(23,107,80,0.24);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.15s;
+}
+
+summary::-webkit-details-marker { display: none; }
+
+summary::before {
+  content: '+';
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1px solid var(--line-2);
+  background: var(--panel-2);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--accent);
+}
+
+details[open] summary::before { content: '−'; }
+summary:hover { color: var(--accent); }
+
+input[type="file"] {
+  width: 100%;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  color: var(--faint);
+  margin-top: 4px;
+}
+
+input[type="file"]::file-selector-button {
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-right: 10px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line-2);
+  background: var(--panel-2);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+/* AI toggle */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0;
+  padding: 12px 0;
+  border: 0;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.toggle-row:hover { color: var(--ink); }
+
+.toggle-row:has(input:checked) {
+  color: var(--accent);
+}
+
+.toggle-row:has(input:disabled) { opacity: 0.45; cursor: default; }
+
+input[type="checkbox"] {
+  appearance: none;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--panel-2);
+  flex: none;
+  cursor: pointer;
+}
+
+input[type="checkbox"]::before {
+  content: '';
+  position: absolute;
+  inset: 3px auto auto 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+input[type="checkbox"]:checked::before { transform: translateX(16px); background: var(--accent-ink); }
+
+/* ═══════════════ Signal monitor ═══════════════ */
+.signal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 8px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.signal-head .sh-label { color: var(--faint); display: inline-flex; align-items: center; gap: 8px; }
+.signal-head .sh-label::before {
+  content: '';
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent);
+}
+.signal-head .sh-hint { color: var(--muted); }
+
+audio { width: 100%; height: 40px; margin-top: 12px; }
+
+.meter-container {
+  position: relative;
+  background-color: var(--well);
+  background-image:
+    linear-gradient(to bottom, transparent calc(50% - 1px), var(--line-2) calc(50% - 1px), var(--line-2) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px),
+    linear-gradient(var(--line) 1px, transparent 1px);
+  background-size: 100% 100%, 28px 100%, 100% 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 3px 8px;
+  overflow: hidden;
+}
+
+.meter {
+  width: 100%;
+  height: 58px;
+  display: block;
+  position: relative;
+  filter: var(--meter-filter);
+}
+
+/* ═══════════════ Buttons ═══════════════ */
+.actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 48px;
+  white-space: normal;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 12px 10px;
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: transform 0.14s ease;
+}
+
+button#start {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow);
 }
 
 button#start:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(23,107,80,0.25), 0 10px 20px rgba(23,107,80,0.28);
+  background: var(--accent-2);
 }
 
-button#start:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: 0 2px 4px rgba(23,107,80,0.2);
-}
+button#start:active:not(:disabled) { transform: translateY(0); }
 
 button#stop {
-  padding: 12px 22px;
-  border: 1px solid #d99a94;
-  border-radius: 9px;
-  background: #fff8f7;
-  color: #a13d37;
-  font-weight: 600;
-  font-size: 14.5px;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--ink-2);
 }
 
 button#stop:hover:not(:disabled) {
-  background: #fee2e2;
-  border-color: #ef4444;
-  color: #991b1b;
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
-button:disabled {
-  opacity: 0.45;
+.actions button::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  flex: none;
+  background: currentColor;
+  mask: var(--icon-play) center / contain no-repeat;
+}
+
+button#stop::before { mask-image: var(--icon-stop); }
+.rail:has(#micMode[aria-pressed="true"]) #start::before { mask-image: var(--icon-mic); }
+
+button:disabled, select:disabled, input:disabled {
+  opacity: 0.6;
   cursor: default;
   box-shadow: none !important;
   transform: none !important;
 }
 
-button:focus-visible, select:focus-visible, input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(223, 170, 72, 0.45);
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-/* Audio Player & Meter */
-audio {
-  width: 100%;
-  margin-top: 18px;
-  border-radius: 8px;
+/* ═══════════════ Status readout ═══════════════ */
+#status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 24px;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: 0;
+  margin: 18px 0 0;
 }
 
-.meter-container {
-  background: #edf3ef;
-  border: 1px solid #d6e2d9;
-  border-radius: 11px;
-  padding: 2px;
-  margin: 14px 0 18px;
+#status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: currentColor;
 }
 
-.meter {
-  width: 100%;
-  height: 56px;
-  display: block;
-  border-radius: 9px;
+#status.error {
+  color: var(--danger);
 }
 
-/* Grid Layout */
+#status.error::before { background: var(--danger); }
+
+/* ═══════════════ Transcript ═══════════════ */
+#transcript {
+  min-height: 106px;
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.85;
+  color: var(--ink-2);
+  background: var(--well);
+  padding: 17px 19px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  margin: 0;
+}
+
+#transcript::-webkit-scrollbar { width: 8px; }
+#transcript::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 8px; }
+#transcriptionNote { margin: 12px 0 0; font-family: var(--font-mono); }
+
+/* ═══════════════ Analysis cards ═══════════════ */
 .columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
 }
 
-.columns .panel {
-  margin: 0;
-  position: relative;
-  overflow: hidden;
-}
+.columns .panel { overflow: hidden; }
 
 .columns .panel::before {
   content: '';
@@ -296,266 +778,142 @@ audio {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--color-primary), rgba(23,107,80,0.2));
-  opacity: 0.9;
+  background: var(--check-accent);
 }
 
-/* Badges & Typography inside Panels */
+.columns .panel:has(.badge-safe) { --check-accent: var(--safe); }
+.columns .panel:has(.badge-caution) { --check-accent: var(--caution); }
+.columns .panel:has(.badge-danger) { --check-accent: var(--danger); border-color: var(--danger); }
+
 .step-badge {
-  display: inline-block;
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--color-primary);
-  font-weight: 700;
-  background: rgba(23, 107, 80, 0.08);
-  border-radius: 6px;
-  padding: 3px 8px;
-  margin-bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-sans);
+  text-transform: none;
+  font-size: 14px;
+  letter-spacing: 0;
+  white-space: normal;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 12px;
 }
 
-.label {
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--color-muted-light);
-  font-weight: 700;
+.step-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  background: var(--decision-accent, var(--accent));
+  flex: none;
 }
 
 .value {
+  font-family: var(--font-display);
   font-size: 24px;
   font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: -0.03em;
-  margin: 8px 0;
-  color: #11241e;
+  text-transform: none;
+  line-height: 1.25;
+  letter-spacing: 0;
+  margin: 0 0 12px;
+  color: var(--ink);
 }
 
 .score {
+  display: block;
   font-variant-numeric: tabular-nums;
   font-family: var(--font-mono);
-  font-size: 13.5px;
-  color: #355346;
-  font-weight: 600;
-  margin: 6px 0;
-}
-
-/* Live Transcript Section */
-.transcript-section {
-  background: #fbfdfc;
-  border-left: 4px solid var(--color-primary) !important;
-}
-
-#transcript {
-  min-height: 80px;
-  white-space: pre-wrap;
-  max-height: 240px;
-  overflow-y: auto;
-  font-family: var(--font-mono);
-  font-size: 13.5px;
-  line-height: 1.65;
-  color: #1f372d;
-  background: #f2f7f4;
-  padding: 14px 16px;
-  border-radius: 10px;
-  border: 1px solid #dce6df;
-  margin: 10px 0 6px;
-}
-
-#transcript:empty, #transcript:contains("Waiting") {
-  color: var(--color-muted);
-}
-
-/* Details & Summaries */
-details {
-  margin-top: 12px;
-}
-
-summary {
-  cursor: pointer;
-  color: var(--color-primary);
-  font-weight: 600;
-  font-size: 13.5px;
-  padding: 4px 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-summary:hover {
-  text-decoration: underline;
-}
-
-/* Status Bar */
-#status {
-  min-height: 24px;
-  padding: 10px 15px;
-  border-radius: 9px;
-  background: #eef4f0;
-  border: 1px solid #d6e3db;
-  color: #214033;
-  font-size: 13.5px;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-2);
   font-weight: 500;
-  margin: 14px 0 8px;
+  padding: 0;
+  margin: 0 0 14px;
 }
 
-#status.error {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #991b1b;
-}
+.panel-body > .muted { font-size: 15px; line-height: 1.6; }
 
-/* Final Assessment Card */
-.final {
-  position: relative;
-  overflow: hidden;
-  border-left: 6px solid var(--color-gold) !important;
-  margin-top: 20px;
-}
-
-.final::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--color-gold), transparent);
-}
-
-.final[data-state="Suspicious"] {
-  border-color: var(--color-danger-dark) !important;
-  background: #fff8f6;
-}
-
-.final[data-state="Suspicious"]::before {
-  background: linear-gradient(90deg, var(--color-danger-dark), transparent);
-}
-
-.final[data-state="No current warning"] {
-  border-color: var(--color-primary) !important;
-  background: #f7fbf8;
-}
-
-.final[data-state="No current warning"]::before {
-  background: linear-gradient(90deg, var(--color-primary), transparent);
-}
-
-.final[data-state="No fraud indicators detected"] {
-  border-color: #71857d !important;
-  background: #f7faf8;
-}
-
-.signals {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 12px;
-  border-top: 1px solid #e1e9e3;
-  padding-top: 18px;
-  margin-top: 20px;
-}
-
-.signal-item {
-  background: rgba(23, 107, 80, 0.035);
-  border: 1px solid #dce5df;
-  border-radius: 10px;
-  padding: 10px 14px;
-}
-
-.signal-item span {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-muted);
-  margin-bottom: 3px;
-}
-
-.signal-item strong {
-  display: block;
-  font-size: 21px;
-  font-family: var(--font-mono);
-  color: #172b24;
-  font-weight: 700;
-}
-
-/* Evidence & Findings */
+/* Findings — auto-numbered with CSS counters, no JS involvement */
 .evidence {
-  padding-left: 20px;
-  font-size: 13.5px;
-  margin: 10px 0;
+  counter-reset: finding;
+  padding-left: 0;
+  list-style: none;
+  font-size: 15px;
+  grid-column: 1 / -1;
+  margin: 0;
+  display: grid;
+  gap: 8px;
 }
+
+.evidence:empty { display: none; }
 
 .evidence li {
-  margin-bottom: 6px;
-  color: #233e33;
+  position: relative;
+  counter-increment: finding;
+  color: var(--ink-2);
+  border-top: 1px solid var(--line);
+  padding: 10px 0 0 28px;
+  line-height: 1.55;
 }
 
-.error { color: #a93232; }
-[hidden] { display: none !important; }
+.evidence li::before {
+  content: counter(finding, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--check-accent);
+}
 
-/* Circular Gauge Card Styling */
+/* ═══════════════ Gauges ═══════════════ */
 .panel-with-gauge {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 18px;
+  align-items: start;
 }
 
-.panel-body {
-  flex: 1;
-  min-width: 0;
-}
+.panel-body { flex: 1; min-width: 0; position: relative; z-index: 1; }
 
 .gauge-card {
-  flex-shrink: 0;
-  width: 132px;
+  position: relative;
+  width: 120px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 14px 8px 12px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7faf8 100%);
-  border: 1px solid #e1e7e3;
-  border-radius: 14px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-  transition: all 0.3s ease;
+  padding: 0;
 }
 
-.gauge-wrap {
-  position: relative;
-  width: 110px;
-  height: 110px;
-}
+.gauge-wrap { position: relative; width: 120px; height: 120px; }
 
-.gauge-svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
+#overallGaugeCard { width: 148px; }
+#overallGaugeCard .gauge-wrap { width: 148px; height: 148px; }
+#overallGaugeCard .gauge-num { font-size: 36px; }
+#overallGaugeCard .gauge-sub { font-size: 13px; }
+
+.gauge-svg { width: 100%; height: 100%; transform: rotate(-90deg); position: relative; }
 
 .gauge-bg {
   fill: none;
-  stroke: #e5e7eb;
-  stroke-width: 10;
+  stroke: var(--gauge-track);
+  stroke-width: 7;
 }
 
 .gauge-fill {
   fill: none;
-  stroke-width: 10;
+  stroke-width: 7;
   stroke-linecap: round;
   stroke-dasharray: 326.73;
   stroke-dashoffset: 326.73;
-  transition: stroke-dashoffset 0.85s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease, filter 0.4s ease;
+  transition: stroke-dashoffset 0.6s ease;
 }
 
 .gauge-center {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -564,257 +922,484 @@ summary:hover {
 }
 
 .gauge-num {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0;
   line-height: 1;
-  color: #1f2937;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
 }
 
 .gauge-sub {
-  font-size: 9.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #6b7280;
-  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--faint);
+  margin-top: 6px;
 }
 
 .gauge-badge {
-  margin-top: 10px;
-  padding: 4px 8px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border-radius: 6px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.4;
+  text-transform: none;
+  border-radius: 4px;
   text-align: center;
-  max-width: 120px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: all 0.3s ease;
+  width: 100%;
 }
 
-/* Gauge Stroke Colors & Glow Effects */
-.stroke-safe {
-  stroke: var(--color-success);
-  filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.35));
-}
-.stroke-caution {
-  stroke: var(--color-warning);
-  filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.35));
-}
-.stroke-danger {
-  stroke: var(--color-danger);
-  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.45));
-}
-.stroke-neutral {
-  stroke: #d1d5db;
-}
+.stroke-safe    { stroke: var(--safe); }
+.stroke-caution { stroke: var(--caution); }
+.stroke-danger  { stroke: var(--danger); }
+.stroke-neutral { stroke: var(--gauge-track); }
 
-/* Badge Color Themes */
 .badge-safe {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+  background: var(--safe-soft); color: var(--safe);
 }
 .badge-caution {
-  background: #fffbeb;
-  color: #92400e;
-  border: 1px solid #fde68a;
+  background: var(--caution-soft); color: var(--caution);
 }
 .badge-danger {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+  background: var(--danger-soft); color: var(--danger);
 }
 .badge-neutral {
-  background: #f3f4f6;
-  color: #6b7280;
-  border: 1px solid #e5e7eb;
+  background: var(--panel-2); color: var(--muted);
 }
 
-/* Elements hidden for cleaner UI presentation */
-#provider, #method, #channelDetails {
-  display: none !important;
+/* ═══════════════ Final verdict ═══════════════ */
+.final {
+  --decision-accent: var(--muted);
+  grid-template-columns: minmax(0, 1fr) 148px;
+  gap: 26px;
+  padding: 24px 0 0;
+  border-top: 1px solid var(--line);
 }
 
-/* Custom Checkbox */
-input[type="checkbox"] {
-  accent-color: var(--color-primary);
-  width: 16px;
-  height: 16px;
-  vertical-align: -2px;
-  cursor: pointer;
+.final::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 64px;
+  height: 3px;
+  background: var(--decision-accent);
 }
 
-/* Responsive Adaptations */
-@media(max-width: 700px) {
-  main { padding: 24px 16px 48px; }
+.final[data-state="Suspicious"] { --decision-accent: var(--danger); }
+.final[data-state="No current warning"],
+.final[data-state="Trusted"] { --decision-accent: var(--safe); }
+.final[data-state="No fraud indicators detected"] { --decision-accent: var(--caution); }
+
+.final .value {
+  font-size: 32px;
+  letter-spacing: 0;
+  margin-bottom: 14px;
+}
+
+.final[data-state="Suspicious"] .value,
+.final[data-state="No current warning"] .value,
+.final[data-state="Trusted"] .value,
+.final[data-state="No fraud indicators detected"] .value {
+  color: var(--decision-accent);
+}
+
+.final #explanation { font-size: 16px; color: var(--ink-2); max-width: 66ch; }
+
+.final #action {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--well);
+  border-left: 2px solid var(--decision-accent);
+  padding: 11px 14px;
+  margin-top: 16px;
+  max-width: 70ch;
+}
+
+.signals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+}
+
+.signal-item { padding: 14px 12px; border-right: 1px solid var(--line); }
+.signal-item:first-child { padding-left: 0; }
+.signal-item:last-child { border-right: none; }
+
+.signal-item span {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--faint);
+  margin-bottom: 7px;
+}
+
+.signal-item strong {
+  display: block;
+  font-size: 24px;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* Diagnostic fields intentionally kept out of the presentation view */
+#provider, #method, #channelDetails { display: none !important; }
+
+.topbar::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent) -280px 0 / 260px 100% no-repeat;
+  opacity: 0.65;
+  animation: header-sweep 9s ease-in-out infinite;
+}
+
+.rail, .transcript-section, .columns .panel, .final {
+  animation: panel-arrive 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.transcript-section { animation-delay: 0.04s; }
+.columns .panel:first-child { animation-delay: 0.08s; }
+.columns .panel:last-child { animation-delay: 0.12s; }
+.final { animation-delay: 0.16s; }
+
+.columns .panel {
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.columns .panel:hover {
+  transform: translateY(-2px);
+  border-color: var(--check-accent);
+  box-shadow: 0 8px 24px -18px color-mix(in srgb, var(--check-accent) 45%, transparent), var(--shadow);
+}
+
+.workspace:has(#start:disabled) .meter-container::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 34%;
+  pointer-events: none;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 12%, transparent));
+  animation: signal-scan 2.6s linear infinite;
+}
+
+.workspace:has(#start:disabled) .gauge-wrap:has(.stroke-neutral)::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  border: 1px solid transparent;
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  border-radius: 50%;
+  animation: scan-orbit 2s linear infinite;
+}
+
+body:has(#start:disabled) .live-dot,
+.workspace:has(#start:disabled) .signal-head .sh-label::before,
+.workspace:has(#start:disabled) #status:not(.error)::before {
+  animation: activity-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes header-sweep {
+  0%, 12% { background-position: -280px 0; }
+  82%, 100% { background-position: calc(100% + 280px) 0; }
+}
+
+@keyframes panel-arrive {
+  from { transform: translateY(12px); }
+  to { transform: translateY(0); }
+}
+
+@keyframes signal-scan {
+  from { transform: translateX(-105%); }
+  to { transform: translateX(300%); }
+}
+
+@keyframes scan-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes activity-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+@media (max-width: 1240px) {
+  .workspace { grid-template-columns: 300px minmax(0, 1fr); gap: 24px; }
+  .rail { padding-right: 20px; }
   .columns { grid-template-columns: 1fr; }
-  section, .panel { padding: 18px; }
-  .panel-with-gauge { flex-direction: column; align-items: stretch; }
-  .gauge-card { align-self: center; margin-top: 14px; width: 145px; }
-  .row button { flex: 1; }
-  .signals { grid-template-columns: 1fr 1fr; }
+  header { align-items: flex-start; flex-direction: column; gap: 8px; }
+}
+
+@media (max-width: 800px) {
+  main { padding: 24px 18px 40px; }
+  .topbar-inner { padding: 14px 18px; flex-wrap: wrap; }
+  .topbar-tools { gap: 14px; }
+  .workspace { grid-template-columns: 1fr; }
+  .rail { padding: 0 0 24px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .final { grid-template-columns: minmax(0, 1fr) 120px; gap: 18px; }
+  #overallGaugeCard, #overallGaugeCard .gauge-wrap { width: 120px; }
+  #overallGaugeCard .gauge-wrap { height: 120px; }
+  .signals { grid-template-columns: 1fr; }
+  .signal-item { padding-left: 0; border-right: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 </style>
 </head>
 <body>
-<main>
-<header>
-  <div class="brand-badge">
-    <span class="live-dot" aria-hidden="true"></span>
-    <span class="brand">CYPHER / LIVE CHECK</span>
-  </div>
-  <h1>One conversation. Two safety checks.</h1>
-  <p class="muted">Follow the words, check the voice, and assess the request.</p>
-</header>
 
-<section aria-label="Audio source">
-  <div class="mode-switcher">
-    <button id="clipMode" class="secondary" aria-pressed="true">Audio library</button>
-    <button id="micMode" class="secondary" aria-pressed="false">Microphone</button>
-  </div>
-  
-  <div id="library">
-    <label for="clip">Choose a sample</label>
-    <select id="clip" style="width:100%"></select>
-    <details>
-      <summary>Add audio to the library</summary>
-      <label for="upload">Upload a clip (up to 20 MB)</label>
-      <input id="upload" type="file" accept="audio/*">
-    </details>
-  </div>
-  
-  <p id="micNote" class="muted" hidden>Microphone audio is analyzed using your Reality Defender API key.</p>
-  
-  <div class="row" style="margin-top: 6px;">
-    <div>
-      <label for="sector">Conversation setting</label>
-      <select id="sector">
-        <option value="individual">Individual</option>
-        <option value="financial">Financial institution</option>
-        <option value="enterprise">Enterprise</option>
-        <option value="government">Government</option>
-      </select>
-    </div>
-  </div>
-  
-  <label style="margin-top: 14px;">
-    <input type="checkbox" id="semantic"> Use AI to understand the conversation
-  </label>
-  
-  <audio id="player" controls preload="metadata"></audio>
-  <div class="meter-container">
-    <canvas id="meter" class="meter" aria-label="Live audio levels"></canvas>
-  </div>
-  
-  <div class="row">
-    <button id="start">Play &amp; analyze</button>
-    <button id="stop" disabled>Stop &amp; finish</button>
-  </div>
-  
-  <p id="status" role="status">Ready. Voice authenticity is analyzed using Reality Defender.</p>
-</section>
-
-<section class="transcript-section">
-  <div class="step-badge">Live transcript</div>
-  <p id="transcript" aria-live="polite">Your conversation will appear here.</p>
-  <p id="transcriptionNote" class="note error"></p>
-</section>
-
-<div class="columns">
-  <article class="panel panel-with-gauge">
-    <div class="panel-body">
-      <div class="step-badge">01 / Voice authenticity</div>
-      <h2 id="voiceLabel" class="value">Awaiting audio</h2>
-      <p id="cloneScore" class="score">Synthetic score —</p>
-      <p id="voiceExplanation" class="muted">Waiting for voice analysis results.</p>
-      <p id="provider" class="note muted"></p>
-      <p id="providerError" class="error note"></p>
-    </div>
-    <div class="gauge-card" id="voiceGaugeCard">
-      <div class="gauge-wrap">
-        <svg class="gauge-svg" viewBox="0 0 130 130" aria-hidden="true">
-          <circle class="gauge-bg" cx="65" cy="65" r="52"/>
-          <circle class="gauge-fill stroke-neutral" id="voiceGaugeFill" cx="65" cy="65" r="52"/>
-        </svg>
-        <div class="gauge-center">
-          <span class="gauge-num" id="voiceGaugeNum">—</span>
-          <span class="gauge-sub">Clone Prob</span>
-        </div>
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="mark">
+      <svg width="30" height="34" viewBox="0 0 30 34" fill="none" aria-hidden="true">
+        <path d="M15 1.6 27.6 7v10.2c0 7.6-5.2 13.4-12.6 15.3C7.6 30.6 2.4 24.8 2.4 17.2V7L15 1.6Z"
+                stroke="currentColor" stroke-width="1.6"/>
+              <path d="M9.6 17.4h3.1l1.9 4.1 3-9.2 1.8 5.1h3.2" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <div class="wordmark">Cypher</div>
+        <div class="mark-sub">Conversation Defence</div>
       </div>
-      <div class="gauge-badge badge-neutral" id="voiceGaugeBadge">Awaiting Audio</div>
     </div>
-  </article>
-
-  <article class="panel panel-with-gauge">
-    <div class="panel-body">
-      <div class="step-badge">02 / Fraud &amp; social engineering</div>
-      <h2 id="fraudLabel" class="value">Not assessed</h2>
-      <p id="fraudScore" class="score">Risk score —</p>
-      <ul id="findings" class="evidence"></ul>
-      <p id="fraudAction" class="muted">Waiting for intelligible speech.</p>
-      <p id="method" class="note muted"></p>
-    </div>
-    <div class="gauge-card" id="fraudGaugeCard">
-      <div class="gauge-wrap">
-        <svg class="gauge-svg" viewBox="0 0 130 130" aria-hidden="true">
-          <circle class="gauge-bg" cx="65" cy="65" r="52"/>
-          <circle class="gauge-fill stroke-neutral" id="fraudGaugeFill" cx="65" cy="65" r="52"/>
-        </svg>
-        <div class="gauge-center">
-          <span class="gauge-num" id="fraudGaugeNum">—</span>
-          <span class="gauge-sub">Fraud Risk</span>
-        </div>
+    <div class="topbar-tools">
+      <div class="live-pill">
+        <span class="live-dot" aria-hidden="true"></span>
+        <span>Live check</span>
       </div>
-      <div class="gauge-badge badge-neutral" id="fraudGaugeBadge">Not Assessed</div>
+      <div class="theme-switch" role="group" aria-label="Color theme">
+        <button type="button" data-theme-choice="light" aria-pressed="false" title="Light theme">
+          <svg class="lucide lucide-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+          <span>Light</span>
+        </button>
+        <button type="button" data-theme-choice="dark" aria-pressed="true" title="Dark theme">
+          <svg class="lucide lucide-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1a7 7 0 0 0 9.9 9.9Z"/></svg>
+          <span>Dark</span>
+        </button>
+      </div>
     </div>
-  </article>
+  </div>
 </div>
 
-<section class="final panel-with-gauge" id="final">
-  <div class="panel-body">
-    <div class="step-badge" id="ratingHeading">CYPHER / provisional assessment</div>
-    <h2 id="rating" class="value">Waiting for evidence</h2>
-    <p id="explanation">Voice and conversation risk will update independently.</p>
-    <p id="action"></p>
-    <div class="signals">
-      <div class="signal-item">
-        <span>Channel quality</span>
-        <strong id="quality">—</strong>
+<main>
+<header>
+  <h1>Conversation analysis<span class="title-period" aria-hidden="true">.</span></h1>
+  <p class="muted">Voice authenticity / Fraud &amp; social engineering</p>
+</header>
+
+<div class="workspace">
+
+  <aside class="rail">
+    <section aria-label="Audio source">
+      <div class="panel-head">
+        <span class="idx" aria-hidden="true">IN</span>
+        <span class="ttl">Audio source</span>
+        <span class="rule"></span>
       </div>
-      <div class="signal-item">
-        <span>Evidence reliability</span>
-        <strong id="reliability">—</strong>
+
+      <div class="mode-switcher">
+        <button id="clipMode" class="secondary" aria-pressed="true"><svg class="lucide lucide-library" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m16 6 4 14M12 6v14M8 8v12M4 4v16"/></svg>Audio library</button>
+        <button id="micMode" class="secondary" aria-pressed="false"><svg class="lucide lucide-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M12 19v3M19 10v2a7 7 0 0 1-14 0v-2"/></svg>Microphone</button>
       </div>
-      <div class="signal-item">
-        <span>Audio received</span>
-        <strong id="duration">0s</strong>
+
+      <div id="library">
+        <div class="field">
+          <label for="clip">Choose a sample</label>
+          <select id="clip"></select>
+        </div>
+        <details>
+          <summary>Add audio to the library</summary>
+          <label for="upload" style="margin-top:14px">Upload a clip (up to 20 MB)</label>
+          <input id="upload" type="file" accept="audio/*">
+        </details>
       </div>
+
+      <p id="micNote" class="muted note" hidden>Microphone audio is analyzed using your Reality Defender API key.</p>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label for="sector">Conversation setting</label>
+        <select id="sector">
+          <option value="individual">Individual</option>
+          <option value="financial">Financial institution</option>
+          <option value="enterprise">Enterprise</option>
+          <option value="government">Government</option>
+        </select>
+      </div>
+
+      <label class="toggle-row">
+        <input type="checkbox" id="semantic"> Use AI to understand the conversation
+      </label>
+
+      <audio id="player" controls preload="metadata"></audio>
+
+      <div class="signal-head">
+        <span class="sh-label">Audio levels</span>
+        <span class="sh-hint">Live input</span>
+      </div>
+      <div class="meter-container">
+        <canvas id="meter" class="meter" aria-label="Live audio levels"></canvas>
+      </div>
+
+      <div class="actions">
+        <button id="start">Play &amp; analyze</button>
+        <button id="stop" disabled>Stop</button>
+      </div>
+
+      <p id="status" role="status">Ready. Voice authenticity is analyzed using Reality Defender.</p>
+    </section>
+  </aside>
+
+  <div class="results">
+
+    <section class="transcript-section">
+      <div class="panel-head">
+        <span class="idx">TX</span>
+        <span class="ttl">Live transcript</span>
+        <span class="rule"></span>
+      </div>
+      <p id="transcript" aria-live="polite">Your conversation will appear here.</p>
+      <p id="transcriptionNote" class="note error"></p>
+    </section>
+
+    <div class="columns">
+      <article class="panel panel-with-gauge" data-index="01">
+        <div class="check-heading">
+          <span class="check-index" aria-hidden="true">01</span>
+          <h2>Voice authenticity</h2>
+        </div>
+        <div class="panel-body">
+          <h3 id="voiceLabel" class="value">Awaiting audio</h3>
+          <p id="cloneScore" class="score">Synthetic score —</p>
+          <p id="voiceExplanation" class="muted">Waiting for voice analysis results.</p>
+          <p id="provider" class="note muted"></p>
+          <p id="providerError" class="error note"></p>
+        </div>
+        <div class="gauge-card" id="voiceGaugeCard">
+          <div class="gauge-wrap">
+            <svg class="gauge-svg" viewBox="0 0 130 130" aria-hidden="true">
+              <circle class="gauge-bg" cx="65" cy="65" r="52"/>
+              <circle class="gauge-fill stroke-neutral" id="voiceGaugeFill" cx="65" cy="65" r="52"/>
+            </svg>
+            <div class="gauge-center">
+              <span class="gauge-num" id="voiceGaugeNum">—</span>
+              <span class="gauge-sub">Synthetic</span>
+            </div>
+          </div>
+          <div class="gauge-badge badge-neutral" id="voiceGaugeBadge">Awaiting Audio</div>
+        </div>
+      </article>
+
+      <article class="panel panel-with-gauge" data-index="02">
+        <div class="check-heading">
+          <span class="check-index" aria-hidden="true">02</span>
+          <h2>Fraud &amp; social engineering</h2>
+        </div>
+        <div class="panel-body">
+          <h3 id="fraudLabel" class="value">Not assessed</h3>
+          <p id="fraudScore" class="score">Risk score —</p>
+          <p id="fraudAction" class="muted">Waiting for intelligible speech.</p>
+          <p id="method" class="note muted"></p>
+        </div>
+        <div class="gauge-card" id="fraudGaugeCard">
+          <div class="gauge-wrap">
+            <svg class="gauge-svg" viewBox="0 0 130 130" aria-hidden="true">
+              <circle class="gauge-bg" cx="65" cy="65" r="52"/>
+              <circle class="gauge-fill stroke-neutral" id="fraudGaugeFill" cx="65" cy="65" r="52"/>
+            </svg>
+            <div class="gauge-center">
+              <span class="gauge-num" id="fraudGaugeNum">—</span>
+              <span class="gauge-sub">Fraud risk</span>
+            </div>
+          </div>
+          <div class="gauge-badge badge-neutral" id="fraudGaugeBadge">Not Assessed</div>
+        </div>
+        <ul id="findings" class="evidence"></ul>
+      </article>
     </div>
-    <p id="channelDetails" class="note muted" style="margin-top: 14px;"></p>
-  </div>
-  <div class="gauge-card" id="overallGaugeCard">
-    <div class="gauge-wrap">
-      <svg class="gauge-svg" viewBox="0 0 130 130" aria-hidden="true">
-        <circle class="gauge-bg" cx="65" cy="65" r="52"/>
-        <circle class="gauge-fill stroke-neutral" id="overallGaugeFill" cx="65" cy="65" r="52"/>
-      </svg>
-      <div class="gauge-center">
-        <span class="gauge-num" id="overallGaugeNum">—</span>
-        <span class="gauge-sub">Threat Index</span>
+
+    <section class="final panel-with-gauge" id="final">
+      <div class="panel-body">
+        <div class="step-badge" id="ratingHeading">CYPHER / provisional assessment</div>
+        <h2 id="rating" class="value">Waiting for evidence</h2>
+        <p id="explanation">Voice and conversation risk will update independently.</p>
+        <p id="action"></p>
+        <div class="signals">
+          <div class="signal-item">
+            <span>Channel quality</span>
+            <strong id="quality">—</strong>
+          </div>
+          <div class="signal-item">
+            <span>Evidence reliability</span>
+            <strong id="reliability">—</strong>
+          </div>
+          <div class="signal-item">
+            <span>Audio received</span>
+            <strong id="duration">0s</strong>
+          </div>
+        </div>
+        <p id="channelDetails" class="note muted"></p>
       </div>
-    </div>
-    <div class="gauge-badge badge-neutral" id="overallGaugeBadge">Waiting</div>
+      <div class="gauge-card" id="overallGaugeCard">
+        <div class="gauge-wrap">
+          <svg class="gauge-svg" viewBox="0 0 130 130" aria-hidden="true">
+            <circle class="gauge-bg" cx="65" cy="65" r="52"/>
+            <circle class="gauge-fill stroke-neutral" id="overallGaugeFill" cx="65" cy="65" r="52"/>
+          </svg>
+          <div class="gauge-center">
+            <span class="gauge-num" id="overallGaugeNum">—</span>
+            <span class="gauge-sub">Threat index</span>
+          </div>
+        </div>
+        <div class="gauge-badge badge-neutral" id="overallGaugeBadge">Waiting</div>
+      </div>
+    </section>
+
   </div>
-</section>
+</div>
 </main>
 <script src="/scan.js"></script>
+<script>
+(() => {
+  const themeButtons = document.querySelectorAll('[data-theme-choice]');
+  const selectTheme = (theme, remember = true) => {
+    if (theme !== 'light' && theme !== 'dark') return;
+    document.documentElement.dataset.theme = theme;
+    themeButtons.forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.themeChoice === theme));
+    });
+    if (remember) {
+      try { localStorage.setItem('cypher-ui-theme', theme); } catch {}
+    }
+  };
+  themeButtons.forEach(button => {
+    button.addEventListener('click', () => selectTheme(button.dataset.themeChoice));
+  });
+  selectTheme(document.documentElement.dataset.theme, false);
+})();
+</script>
 </body>
 </html>
